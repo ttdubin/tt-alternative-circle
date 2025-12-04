@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>TT另类圈</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:微软雅黑}
+body{background:#000;color:#fff;padding:15px}
+.title{text-align:center;font-size:40px;margin:20px 0;letter-spacing:3px}
+.title span{display:inline-block;animation:swing 2s infinite ease-in-out}
+.title span:nth-child(1){animation-delay:0s}
+.title span:nth-child(2){animation-delay:0.2s}
+.title span:nth-child(3){animation-delay:0.4s}
+.title span:nth-child(4){animation-delay:0.6s}
+.title span:nth-child(5){animation-delay:0.8s}
+@keyframes swing{0%,100%{transform:rotate(0) translateY(0)}50%{transform:rotate(5deg) translateY(-5px)}}
+.creator{text-align:center;margin:15px 0;padding:10px;border:1px solid #fff;border-radius:5px}
+.search-bar{margin:20px 0}
+.search-input{width:100%;padding:12px;border:1px solid #fff;border-radius:5px;background:#111;color:#fff;outline:none}
+.nav{display:flex;gap:8px;margin:20px 0;flex-wrap:wrap}
+.nav-btn{flex:1;min-width:80px;padding:12px;text-align:center;border:1px solid #fff;border-radius:5px;background:#000;cursor:pointer}
+.nav-btn.active,.nav-btn:hover{background:#fff;color:#000}
+.content{margin:25px 0;display:none}
+.content.active{display:block}
+.card-list{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:15px}
+.card{padding:15px;border:1px solid #fff;border-radius:5px;background:#111;text-align:center;cursor:pointer;min-height:60px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;transition:all 0.2s ease}
+.card:hover{background:#222;border-color:#ffd700;transform:scale(1.03)}
+.empty-state{text-align:center;padding:20px;color:#aaa;font-size:16px}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;justify-content:center;align-items:center;z-index:10}
+.modal-content{background:#111;padding:20px;border:1px solid #fff;border-radius:8px;width:90%;max-width:600px}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;border-bottom:1px solid #fff;padding-bottom:8px}
+.btn-close{background:none;border:none;color:#fff;font-size:20px;cursor:pointer}
+.detail-info p{margin:10px 0;min-height:20px}
+.edit-form input,.edit-form textarea{width:100%;padding:10px;margin:8px 0;border:1px solid #fff;border-radius:4px;background:#222;color:#fff;outline:none}
+.edit-form input[type="password"]{font-family:Arial,sans-serif;letter-spacing:2px}
+.modal-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}
+.btn-save,.btn-cancel{padding:8px 16px;border:none;border-radius:4px;cursor:pointer}
+.btn-save{background:#fff;color:#000}
+.btn-cancel{background:#333;color:#fff}
+</style>
+</head>
+<body>
+<h1 class="title"><span>T</span><span>T</span><span>另</span><span>类</span><span>圈</span></h1>
+<div class="creator"><h3>创作人老爷</h3></div>
+<div class="search-bar">
+<input type="text" class="search-input" id="searchInput" placeholder="搜索名称...">
+</div>
+<div class="nav">
+<div class="nav-btn active" onclick="switchTab('label')">厂牌</div>
+<div class="nav-btn" onclick="switchTab('core')">核心成员</div>
+<div class="nav-btn" onclick="switchTab('public')">公众人物</div>
+</div>
+<div class="content active" id="labelContent">
+<h2>厂牌列表</h2>
+<div class="card-list" id="labelList"></div>
+</div>
+<div class="content" id="coreContent">
+<h2>核心成员</h2>
+<div class="card-list" id="coreList"></div>
+</div>
+<div class="content" id="publicContent">
+<h2>公众人物</h2>
+<div class="card-list" id="publicList"></div>
+</div>
+<div class="modal" id="detailModal">
+<div class="modal-content">
+<div class="modal-header">
+<h3 class="modal-title" id="modalTitle">详情</h3>
+<button class="btn-close" onclick="closeModal('detailModal')">&times;</button>
+</div>
+<div class="detail-info" id="detailInfo">
+<p><strong>名称：</strong><span id="detailName"></span></p >
+<p><strong>喊法：</strong><span id="detailCall"></span></p >
+<p><strong>简介：</strong><span id="detailIntro"></span></p >
+</div>
+<button class="btn-save" onclick="openModal('editModal')">填写资料</button>
+</div>
+</div>
+<div class="modal" id="editModal">
+<div class="modal-content">
+<div class="modal-header">
+<h3 class="modal-title">填写资料</h3>
+<button class="btn-close" onclick="closeModal('editModal')">&times;</button>
+</div>
+<div class="edit-form">
+<input type="hidden" id="editId">
+<input type="hidden" id="editType">
+<input type="text" id="editName" placeholder="请输入名称">
+<input type="text" id="editCall" placeholder="请输入喊法">
+<textarea id="editIntro" placeholder="请输入简介"></textarea>
+<input type="password" id="editPwd" placeholder="请输入密码" autocomplete="off">
+</div>
+<div class="modal-btns">
+<button class="btn-save" onclick="saveEdit()">保存</button>
+<button class="btn-cancel" onclick="closeModal('editModal')">取消</button>
+</div>
+</div>
+</div>
+<script>
+// 兼容旧版浏览器的 localStorage 检查
+function getStorageData(key, initCount) {
+    var data = localStorage.getItem(key);
+    if (data) {
+        try {
+            return JSON.parse(data);
+        } catch (e) {
+            // 如果 JSON 解析失败，重新初始化
+            localStorage.removeItem(key);
+        }
+    }
+    // 用传统 for 循环替代 Array.from
+    var initData = [];
+    for (var i = 0; i < initCount; i++) {
+        initData.push({
+            id: key.charAt(0) + i,
+            n: '',
+            c: '',
+            b: ''
+        });
+    }
+    localStorage.setItem(key, JSON.stringify(initData));
+    return initData;
+}
+
+function setStorageData(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+var labelData = getStorageData('labelData', 30);
+var coreData = getStorageData('coreData', 200);
+var publicData = getStorageData('publicData', 50);
+
+var currentTab = 'label';
+
+// 渲染卡片，用字符串拼接替代模板字符串
+function renderCards(type, keyword) {
+    keyword = keyword || '';
+    var data, listId;
+    if (type === 'label') {
+        data = labelData;
+        listId = 'labelList';
+    } else if (type === 'core') {
+        data = coreData;
+        listId = 'coreList';
+    } else if (type === 'public') {
+        data = publicData;
+        listId = 'publicList';
+    }
+    var list = document.getElementById(listId);
+    var filteredData = [];
+    for (var i = 0; i < data.length; i++) {
+        var item = data[i];
+        if (keyword === '' || (item.n && item.n.toLowerCase().indexOf(keyword) !== -1)) {
+            filteredData.push(item);
+        }
+    }
+    var html = '';
+    if (filteredData.length === 0) {
+        html = '<div class="empty-state">暂无匹配内容</div>';
+    } else {
+        for (var j = 0; j < filteredData.length; j++) {
+            var item = filteredData[j];
+            var cardText = item.n || '';
+            html += '<div class="card" onclick="showDetail(\'' + item.id + '\',\'' + type + '\')">' + cardText + '</div>';
+        }
+    }
+    list.innerHTML = html;
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    // 移除所有 active 类
+    var contents = document.querySelectorAll('.content');
+    for (var i = 0; i < contents.length; i++) {
+        contents[i].classList.remove('active');
+    }
+    var navBtns = document.querySelectorAll('.nav-btn');
+    for (var j = 0; j < navBtns.length; j++) {
+        navBtns[j].classList.remove('active');
+    }
+    // 激活当前标签
+    document.getElementById(tab + 'Content').classList.add('active');
+    // 找到对应的 nav-btn 并激活（兼容不同写法）
+    var btn = document.querySelector('.nav-btn[onclick="switchTab(\'' + tab + '\')"]');
+    if (btn) {
+        btn.classList.add('active');
+    } else {
+        //  fallback: 按文字匹配
+        navBtns = document.querySelectorAll('.nav-btn');
+        for (var k = 0; k < navBtns.length; k++) {
+            if (navBtns[k].innerText.trim() === (tab === 'label' ? '厂牌' : tab === 'core' ? '核心成员' : '公众人物')) {
+                navBtns[k].classList.add('active');
+                break;
+            }
+        }
+    }
+    // 隐藏其他标签
+    contents = document.querySelectorAll('.content');
+    for (var l = 0; l < contents.length; l++) {
+        if (contents[l].id !== tab + 'Content') {
+            contents[l].style.display = 'none';
+        } else {
+            contents[l].style.display = 'block';
+        }
+    }
+    // 渲染
+    var keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    renderCards(tab, keyword);
+}
+
+function showDetail(id, type) {
+    var data;
+    if (type === 'label') {
+        data = labelData;
+    } else if (type === 'core') {
+        data = coreData;
+    } else if (type === 'public') {
+        data = publicData;
+    }
+    var item = null;
+    for (var i = 0; i < data.length; i++) {
+        if (data[i].id === id) {
+            item = data[i];
+            break;
+        }
+    }
+    if (!item) return;
+    // 使用 innerText 替代 textContent
+    document.getElementById('modalTitle').innerText = item.n || '空白内容';
+    document.getElementById('detailName').innerText = item.n || '未填写';
+    document.getElementById('detailCall').innerText = item.c || '未填写';
+    document.getElementById('detailIntro').innerText = item.b || '未填写';
+    document.getElementById('editId').value = id;
+    document.getElementById('editType').value = type;
+    document.getElementById('editName').value = item.n || '';
+    document.getElementById('editCall').value = item.c || '';
+    document.getElementById('editIntro').value = item.b || '';
+    document.getElementById('editPwd').value = '';
+    openModal('detailModal');
+}
+
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+function saveEdit() {
+    var pwd = document.getElementById('editPwd').value;
+    if (pwd !== '20070308') {
+        alert('密码错误！');
+        return;
+    }
+    var id = document.getElementById('editId').value;
+    var type = document.getElementById('editType').value;
+    var data;
+    if (type === 'label') {
+        data = labelData;
+    } else if (type === 'core') {
+        data = coreData;
+    } else if (type === 'public') {
+        data = publicData;
+    }
+    var item = null;
+    for (var i = 0; i < data.length; i++) {
+        if (data[i].id === id) {
+            item = data[i];
+            break;
+        }
+    }
+    if (!item) return;
+    item.n = document.getElementById('editName').value.trim();
+    item.c = document.getElementById('editCall').value.trim();
+    item.b = document.getElementById('editIntro').value.trim();
+    setStorageData(type + 'Data', data);
+    closeModal('editModal');
+    showDetail(id, type);
+    var keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    renderCards(currentTab, keyword);
+}
+
+// 搜索事件监听（兼容 addEventListener）
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    var keyword = e.target.value.trim().toLowerCase();
+    renderCards(currentTab, keyword);
+});
+
+// 初始化
+renderCards('label', '');
+</script>
+</body>
+</html>
